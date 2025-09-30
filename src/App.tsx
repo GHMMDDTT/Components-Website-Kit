@@ -1,26 +1,12 @@
-import React from 'react';
-import logo from './logo.svg';
+import { View, ViewGroup, Border } from './components.website.kit/components'
 import './App.css';
 
 function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+	return (
+		<View width='250px' height='250px' backgroundColor={['00', 'FF', '00']} styling={
+			<Border border={{ borderRadius: '10px'}} />
+		} />
+	);
 }
 
 export default App;
