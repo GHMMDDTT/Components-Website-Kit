@@ -1,14 +1,13 @@
-import { Border, Radius, Stroke, View } from './components.website.kit/components'
+import { TextLabel$Content, TextLabel, TextLabel$Content$Style } from './components.website.kit/components'
 import './App.css';
 import React from 'react';
 
 function App(): React.JSX.Element {
 	return (
-		<View height='25vh' width='25vw' backgroundColor={'white'} style={
-			<Border>
-				<Stroke strokeWidth={'2px'} strokeColor={[122, 122, 0]} />
-				<Radius radius={['50%', '50%', '10%', '10%']} />
-			</Border>
+		<TextLabel height='20px' width='20px' value={
+			<TextLabel$Content>
+				Hello <TextLabel$Content$Style style={'strong'}>World<TextLabel$Content$Style style={'underline'} color={[255, 0, 0]}>!!!</TextLabel$Content$Style></TextLabel$Content$Style>
+			</TextLabel$Content>
 		} />
 	);
 }

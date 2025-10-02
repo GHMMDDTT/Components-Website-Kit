@@ -1,33 +1,13 @@
 import React from "react";
-import { Border, Radius, Shadow, Shadows, Stroke } from "./components";
+import { Border, Radius, Shadow, Shadows, Stroke, TextLabel$Content, TextLabel$Content$Style } from "./components";
 import { DataTypes } from "./Types";
+import { getValue } from "@testing-library/user-event/dist/utils";
 
 export class ResolvingComponentsProperty {
 	readonly data: ComponentsProperty;
 
 	constructor(data: ComponentsProperty) {
 		this.data = data;
-	}
-	
-	private resolvingColor(
-		bc: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?]
-		  | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?]
-		  | DataTypes.NamedColor
-		  | DataTypes.DeprecatedSystemColor
-		  | undefined
-	): string | undefined {
-		if (bc === undefined) return undefined;
-
-
-		if (Array.isArray(bc)) {
-			if (typeof bc[0] === 'number' && typeof bc[1] === 'number' && typeof bc[2] === 'number') {
-				return typeof bc[3] === 'number' && bc[3] !== undefined ? `rgba(${bc[0]}, ${bc[1]}, ${bc[2]}, ${bc[3]})` : `rgb(${bc[0]}, ${bc[1]}, ${bc[2]})`
-			} else {
-				return bc[3] !== undefined ? `#${bc[0]}${bc[1]}${bc[2]}${bc[3]}` : `#${bc[0]}${bc[1]}${bc[2]}`
-			}
-		}
-
-		return bc;
 	}
 
 	private resolvingNumber(
@@ -60,20 +40,20 @@ export class ResolvingComponentsProperty {
 			if (React.isValidElement(child)) {
 				
 				if (child.type === Stroke && !(types[1] && types[2])) {
-					const strokeProps = child.props as ComponentProperty$Stroke; 
+					const strokeProps = child.props as ComponentProperty$Style$Stroke; 
 					
 					types[1] = strokeProps.strokeWidth;
-					types[2] = this.resolvingColor(strokeProps.strokeColor);
+					types[2] = resolvingColor(strokeProps.strokeColor);
 
 					return;
 				} else if (child.type === Radius && !types[0]) {
-					const radiusProps = child.props as ComponentProperty$Radius;
+					const radiusProps = child.props as ComponentProperty$Style$Radius;
 
 					types[0] = this.resolvingNumber(radiusProps.radius);
 
 					return;
 				} else if (child.type === Shadows && !types[3]) {
-					const childShadows = child.props as ComponentProperty$Shadows;
+					const childShadows = child.props as ComponentProperty$Style$Shadows;
 					let shadow: string = '';
 
 					React.Children.forEach(childShadows.children, (child) => {
@@ -81,12 +61,12 @@ export class ResolvingComponentsProperty {
 						if (React.isValidElement(child)) {
 
 							if (child.type === Shadow) {
-								const shadowProps = child.props as ComponentProperty$Shadow;
+								const shadowProps = child.props as ComponentProperty$Style$Shadow;
 
 								shadow += `${shadowProps.leftShadow} `;
 								shadow += `${shadowProps.bottomShadow} `;
-								shadow += !shadowProps.blushShadow ? '' : `${shadowProps.blushShadow} `;
-								shadow += !shadowProps.shadowColor ? 'black' : this.resolvingColor(shadowProps.shadowColor);
+								shadow += !shadowProps.blurShadow ? '' : `${shadowProps.blurShadow} `;
+								shadow += !shadowProps.shadowColor ? 'black' : resolvingColor(shadowProps.shadowColor);
 
 								shadow += ', ';
 								return;
@@ -109,13 +89,82 @@ export class ResolvingComponentsProperty {
 			height: this.data.height,
 			width: this.data.width,
 
-			backgroundColor: this.resolvingColor(this.data.backgroundColor),
+			backgroundColor: resolvingColor(this.data.backgroundColor),
 			border: `${types[1]} solid ${types[2]}`,
 			borderRadius: types[0],
 			boxShadow: types[3]
 		};
 
 		return datas;
+	}
+}
+
+export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsProperty {
+	readonly data: ComponentsProperty$TextLabel;
+
+	constructor(data: ComponentsProperty$TextLabel) {
+		super(data);
+		this.data = data;
+	}
+
+	public resolvingValue(): string {
+		function Inner(props: ComponentsProperty$TextLabel$Content, text: string = ''): string {
+			if (typeof props.children === "string") text += props.children;
+			else if (Array.isArray(props.children)) {
+				props.children.forEach((value) => {
+					if (typeof value === "string") text += value;
+					else if (React.isValidElement(value)) {
+						if (value.type === TextLabel$Content$Style) {
+							const ContentProps = value.props as ComponentsProperty$TextLabel$Content$Style;
+							switch (ContentProps.style) {
+								case 'strong': {
+									text += `<b${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</b$>`;
+									break;
+								}
+								case 'underline': {
+									text += `<u${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</u$>`;
+									break;
+								}
+								case 'italic': {
+									text += `<i${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</i$>`;
+									break;
+								}
+								default: {
+									if (typeof ContentProps.style === "object") {
+										let a: { reference: string; } = ContentProps.style;
+										if ('reference' in a) {
+											text += `<a${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''} href='#${a.reference}'>${Inner(ContentProps)}</a$>`;
+										}
+									}
+								}
+							}
+						} else {
+							const ContentProps = value.props as ComponentsProperty$TextLabel$Content;
+
+							text = Inner(ContentProps, text);
+						}
+					} 
+				})
+			}
+
+			return text;
+		}
+
+		let v = this.data.value;
+		let text: string = '';
+
+		if (!v) return '';
+		
+		if (React.isValidElement(v)) {
+			const ContentProps = v.props as ComponentsProperty$TextLabel$Content;
+
+			text = Inner(ContentProps, text);
+			console.log(text)
+		} else if (typeof v === "string") {
+			text = v;
+		}
+
+		return text;
 	}
 }
 
@@ -126,34 +175,68 @@ export interface ComponentsProperty {
 
 	backgroundColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 
-	style?: React.ReactElement<ComponentProperty$Border>;
+	style?: React.ReactElement<ComponentProperty$Style$Border>;
 
 	onPressed?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
 	onReleased?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
 }
 
-export interface ComponentProperty$Stroke {
+export interface ComponentsProperty$TextLabel extends ComponentsProperty {
+	value: string | React.JSX.Element;
+}
+
+export interface ComponentsProperty$TextLabel$Content {
+	children: string | (string | React.JSX.Element)[];
+}
+
+export interface ComponentsProperty$TextLabel$Content$Style extends ComponentsProperty$TextLabel$Content {
+	style: 'italic' | 'underline' | 'strong' | { reference: string };
+	color?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
+}
+
+export interface ComponentProperty$Style$Stroke {
 	strokeWidth: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters,
 	strokeColor: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 }
 
-export interface ComponentProperty$Radius {
+export interface ComponentProperty$Style$Radius {
 	radius: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
 		  | ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
 		  | (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters);
 }
 
-export interface ComponentProperty$Border {
-	children: React.ReactElement<ComponentProperty$Radius | ComponentProperty$Stroke | ComponentProperty$Shadows> | React.ReactElement<ComponentProperty$Radius | ComponentProperty$Stroke | ComponentProperty$Shadows>[];
+export interface ComponentProperty$Style$Border {
+	children: React.ReactElement<ComponentProperty$Style$Radius | ComponentProperty$Style$Stroke | ComponentProperty$Style$Shadows> | React.ReactElement<ComponentProperty$Style$Radius | ComponentProperty$Style$Stroke | ComponentProperty$Style$Shadows>[];
 }
 
-export interface ComponentProperty$Shadows {
-	children: React.ReactElement<ComponentProperty$Shadow> | React.ReactElement<ComponentProperty$Shadow>[];
+export interface ComponentProperty$Style$Shadows {
+	children: React.ReactElement<ComponentProperty$Style$Shadow> | React.ReactElement<ComponentProperty$Style$Shadow>[];
 }
 
-export interface ComponentProperty$Shadow {
+export interface ComponentProperty$Style$Shadow {
 	leftShadow: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
 	bottomShadow: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
-	blushShadow?: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
+	blurShadow?: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
 	shadowColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
+}
+
+function resolvingColor(
+	bc: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?]
+		| [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?]
+		| DataTypes.NamedColor
+		| DataTypes.DeprecatedSystemColor
+		| undefined
+): string | undefined {
+	if (bc === undefined) return undefined;
+
+
+	if (Array.isArray(bc)) {
+		if (typeof bc[0] === 'number' && typeof bc[1] === 'number' && typeof bc[2] === 'number') {
+			return typeof bc[3] === 'number' && bc[3] !== undefined ? `rgba(${bc[0]}, ${bc[1]}, ${bc[2]}, ${bc[3]})` : `rgb(${bc[0]}, ${bc[1]}, ${bc[2]})`
+		} else {
+			return bc[3] !== undefined ? `#${bc[0]}${bc[1]}${bc[2]}${bc[3]}` : `#${bc[0]}${bc[1]}${bc[2]}`
+		}
+	}
+
+	return bc;
 }

@@ -1,4 +1,14 @@
 export namespace DataTypes {
+	export class DataTypesDefault {
+		public static readonly DEFAULT_DIV: React.JSX.Element = <div />
+	}
+
+	export type Pixel = `${number}px`;
+	export type Point = `${number}pt`;
+	export type Inch = `${number}in`;
+	export type Centimeters = `${number}cm`;
+	export type Millimeters = `${number}mm`;
+
 	export type PorcentageRange =
 		'0%' |
 		'1%' |
@@ -307,12 +317,6 @@ export namespace DataTypes {
 		'98vw' |
 		'99vw' |
 		'100vw';
-
-	export type Pixel = `${number}px`;
-	export type Point = `${number}pt`;
-	export type Inch = `${number}in`;
-	export type Centimeters = `${number}cm`;
-	export type Millimeters = `${number}mm`;
 
 	export type RangeNumberColor =
 		0 |
