@@ -10,22 +10,8 @@ export class ResolvingComponentsProperty {
 		this.data = data;
 	}
 
-	private resolvingNumber(
-		an$n: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
-			| ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
-			| (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters)
-	): string | undefined {
-		if (!an$n) return undefined;
-
-		if (Array.isArray(an$n)) {
-			return an$n.length === 2 ? `${an$n[0]} ${an$n[0]} ${an$n[1]} ${an$n[1]}` : `${an$n[0]} ${an$n[1]} ${an$n[2]} ${an$n[3]}`;
-		}
-
-		return `${an$n} ${an$n} ${an$n} ${an$n}`
-	}
-
 	public resolvingStyling(): React.CSSProperties | undefined {
-		const s = this.data.style;
+		const s = this.data.design;
 		if (!s) return undefined;
 		
 		if (s.type !== Border) throw new Error("Only the type '<Border>...</Border>' can be used; any other type of value is not valid.");
@@ -49,7 +35,7 @@ export class ResolvingComponentsProperty {
 				} else if (child.type === Radius && !types[0]) {
 					const radiusProps = child.props as ComponentProperty$Style$Radius;
 
-					types[0] = this.resolvingNumber(radiusProps.radius);
+					types[0] = resolvingNumber(radiusProps.radius);
 
 					return;
 				} else if (child.type === Shadows && !types[3]) {
@@ -92,7 +78,9 @@ export class ResolvingComponentsProperty {
 			backgroundColor: resolvingColor(this.data.backgroundColor),
 			border: `${types[1]} solid ${types[2]}`,
 			borderRadius: types[0],
-			boxShadow: types[3]
+			boxShadow: types[3],
+
+			padding: resolvingNumber(this.data.padding)
 		};
 
 		return datas;
@@ -118,22 +106,24 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 							const ContentProps = value.props as ComponentsProperty$TextLabel$Content$Style;
 							switch (ContentProps.style) {
 								case 'strong': {
-									text += `<b${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</b$>`;
+									text += `<b ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</b>`;
 									break;
 								}
 								case 'underline': {
-									text += `<u${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</u$>`;
+									text += `<u ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</u>`;
 									break;
 								}
 								case 'italic': {
-									text += `<i${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</i$>`;
+									text += `<i ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</i>`;
 									break;
 								}
 								default: {
 									if (typeof ContentProps.style === "object") {
-										let a: { reference: string; } = ContentProps.style;
-										if ('reference' in a) {
-											text += `<a${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''} href='#${a.reference}'>${Inner(ContentProps)}</a$>`;
+										let mapping: { reference: string; } | { weight: number } = ContentProps.style;
+										if ('reference' in mapping) {
+											text += `<a ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''} href='#${mapping.reference}'>${Inner(ContentProps)}</a>`;
+										} else if ('weight' in mapping) {
+											text += `<p ${ContentProps.color ? ` style='margin: 0px; font-weight: ${mapping.weight}; color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</p>`;
 										}
 									}
 								}
@@ -166,6 +156,29 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 
 		return text;
 	}
+
+	public resolvingStyling(): React.CSSProperties | undefined {
+		let mapping: React.CSSProperties | undefined = super.resolvingStyling();
+		if (mapping) {
+			if (typeof this.data.style === "object") {
+				let map: { weight: number } = this.data.style;
+				if ('weight' in map) {
+					mapping.fontWeight = map.weight;
+				}
+			} else if (this.data.style === 'strong') {
+				mapping.fontWeight = 800;
+			} else if (this.data.style === 'underline') {
+				mapping.fontStyle = 'unset';
+			} else if (this.data.style === 'italic') {
+				mapping.fontStyle = 'italic';
+			} else if (this.data.style === 'oblique') {
+				mapping.fontStyle = 'oblique';
+			}
+
+			mapping.color = resolvingColor(this.data.fontColor);
+		}
+		return mapping;
+	}
 }
 
 export interface ComponentsProperty {
@@ -175,7 +188,11 @@ export interface ComponentsProperty {
 
 	backgroundColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 
-	style?: React.ReactElement<ComponentProperty$Style$Border>;
+	design?: React.ReactElement<ComponentProperty$Style$Border>;
+
+	padding?: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
+		  | ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
+		  | (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters);
 
 	onPressed?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
 	onReleased?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
@@ -183,6 +200,8 @@ export interface ComponentsProperty {
 
 export interface ComponentsProperty$TextLabel extends ComponentsProperty {
 	value: string | React.JSX.Element;
+	style?: 'strong' | 'underline' | 'italic' | 'oblique' | { weight: number };
+	fontColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 }
 
 export interface ComponentsProperty$TextLabel$Content {
@@ -190,7 +209,7 @@ export interface ComponentsProperty$TextLabel$Content {
 }
 
 export interface ComponentsProperty$TextLabel$Content$Style extends ComponentsProperty$TextLabel$Content {
-	style: 'italic' | 'underline' | 'strong' | { reference: string };
+	style: 'strong' | 'underline' | 'italic' | { weight: number } | { reference: string };
 	color?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 }
 
@@ -239,4 +258,18 @@ function resolvingColor(
 	}
 
 	return bc;
+}
+
+function resolvingNumber(
+	an$n: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
+		| ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
+		| (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters) | undefined
+): string | undefined {
+	if (!an$n) return '0px 0px 0px 0px';
+
+	if (Array.isArray(an$n)) {
+		return an$n.length === 2 ? `${an$n[0]} ${an$n[0]} ${an$n[1]} ${an$n[1]}` : `${an$n[0]} ${an$n[1]} ${an$n[2]} ${an$n[3]}`;
+	}
+
+	return `${an$n} ${an$n} ${an$n} ${an$n}`
 }
