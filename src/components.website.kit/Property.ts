@@ -11,65 +11,64 @@ export class ResolvingComponentsProperty {
 	}
 
 	public resolvingStyling(): React.CSSProperties | undefined {
-		const s = this.data.design;
-		if (!s) return undefined;
-		
-		if (s.type !== Border) throw new Error("Only the type '<Border>...</Border>' can be used; any other type of value is not valid.");
-
-		const borderProps = s.props;
-		const borderChildren = borderProps.children;
-
 		let types: [string | undefined, string | undefined, string | undefined, string | undefined] = [undefined, undefined, undefined, undefined];
-		
-		React.Children.forEach(borderChildren, (child) => {
+
+		if (this.data.design) {
+			if (this.data.design.type !== Border) throw new Error("Only the type '<Border>...</Border>' can be used; any other type of value is not valid.");
+
+			const borderProps = this.data.design.props;
+			const borderChildren = borderProps.children;
 			
-			if (React.isValidElement(child)) {
+			React.Children.forEach(borderChildren, (child) => {
 				
-				if (child.type === Stroke && !(types[1] && types[2])) {
-					const strokeProps = child.props as ComponentProperty$Style$Stroke; 
+				if (React.isValidElement(child)) {
 					
-					types[1] = strokeProps.strokeWidth;
-					types[2] = resolvingColor(strokeProps.strokeColor);
+					if (child.type === Stroke && !(types[1] && types[2])) {
+						const strokeProps = child.props as ComponentProperty$Style$Stroke; 
+						
+						types[1] = strokeProps.strokeWidth;
+						types[2] = resolvingColor(strokeProps.strokeColor);
 
-					return;
-				} else if (child.type === Radius && !types[0]) {
-					const radiusProps = child.props as ComponentProperty$Style$Radius;
+						return;
+					} else if (child.type === Radius && !types[0]) {
+						const radiusProps = child.props as ComponentProperty$Style$Radius;
 
-					types[0] = resolvingNumber(radiusProps.radius);
+						types[0] = resolvingNumber(radiusProps.radius);
 
-					return;
-				} else if (child.type === Shadows && !types[3]) {
-					const childShadows = child.props as ComponentProperty$Style$Shadows;
-					let shadow: string = '';
+						return;
+					} else if (child.type === Shadows && !types[3]) {
+						const childShadows = child.props as ComponentProperty$Style$Shadows;
+						let shadow: string = '';
 
-					React.Children.forEach(childShadows.children, (child) => {
+						React.Children.forEach(childShadows.children, (child) => {
 
-						if (React.isValidElement(child)) {
+							if (React.isValidElement(child)) {
 
-							if (child.type === Shadow) {
-								const shadowProps = child.props as ComponentProperty$Style$Shadow;
+								if (child.type === Shadow) {
+									const shadowProps = child.props as ComponentProperty$Style$Shadow;
 
-								shadow += `${shadowProps.leftShadow} `;
-								shadow += `${shadowProps.bottomShadow} `;
-								shadow += !shadowProps.blurShadow ? '' : `${shadowProps.blurShadow} `;
-								shadow += !shadowProps.shadowColor ? 'black' : resolvingColor(shadowProps.shadowColor);
+									shadow += `${shadowProps.leftShadow} `;
+									shadow += `${shadowProps.bottomShadow} `;
+									shadow += !shadowProps.blurShadow ? '' : `${shadowProps.blurShadow} `;
+									shadow += !shadowProps.shadowColor ? 'black' : resolvingColor(shadowProps.shadowColor);
 
-								shadow += ', ';
-								return;
+									shadow += ', ';
+									return;
+								}
+
+								throw new Error("Only the type '<Shadow .../>' can be used; any other type of value is not valid.")
+
 							}
 
-							throw new Error("Only the type '<Shadow .../>' can be used; any other type of value is not valid.")
+						});
 
-						}
-
-					});
-
-					types[3] = shadow.substring(0, shadow.length - 2);
-					return;
+						types[3] = shadow.substring(0, shadow.length - 2);
+						return;
+					}
+					throw new Error("Duplicate tag ('Shadows', 'Radius' & 'Stroke') or invalid tag");
 				}
-				throw new Error("Duplicate tag ('Shadows', 'Radius' & 'Stroke') or invalid tag");
-			}
-		});
+			});
+		}
 
 		let datas: React.CSSProperties = {
 			height: this.data.height,
@@ -102,6 +101,7 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 				props.children.forEach((value) => {
 					if (typeof value === "string") text += value;
 					else if (React.isValidElement(value)) {
+						console.log(typeof value.type);
 						if (value.type === TextLabel$Content$Style) {
 							const ContentProps = value.props as ComponentsProperty$TextLabel$Content$Style;
 							switch (ContentProps.style) {
@@ -127,12 +127,11 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 										}
 									}
 								}
+								return;
 							}
-						} else {
-							const ContentProps = value.props as ComponentsProperty$TextLabel$Content;
-
-							text = Inner(ContentProps, text);
+							return;
 						}
+						throw new Error("Only the type '<TextLabel$Content$Style ...>...</TextLabel$Content$Style>' or 'string' can be used;  any other type of value is not valid.")
 					} 
 				})
 			}
@@ -140,7 +139,7 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 			return text;
 		}
 
-		let v = this.data.value;
+		let v = this.data.content;
 		let text: string = '';
 
 		if (!v) return '';
@@ -173,6 +172,8 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 				mapping.fontStyle = 'italic';
 			} else if (this.data.style === 'oblique') {
 				mapping.fontStyle = 'oblique';
+			} else if (this.data.style === 'underline') {
+				mapping.textDecoration = 'underline';
 			}
 
 			mapping.color = resolvingColor(this.data.fontColor);
@@ -199,13 +200,13 @@ export interface ComponentsProperty {
 }
 
 export interface ComponentsProperty$TextLabel extends ComponentsProperty {
-	value: string | React.JSX.Element;
+	content: string | React.ReactElement<ComponentsProperty$TextLabel$Content>;
 	style?: 'strong' | 'underline' | 'italic' | 'oblique' | { weight: number };
 	fontColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 }
 
 export interface ComponentsProperty$TextLabel$Content {
-	children: string | (string | React.JSX.Element)[];
+	children: string | (string | React.ReactElement<ComponentsProperty$TextLabel$Content$Style>)[];
 }
 
 export interface ComponentsProperty$TextLabel$Content$Style extends ComponentsProperty$TextLabel$Content {
