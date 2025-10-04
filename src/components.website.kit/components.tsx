@@ -1,5 +1,5 @@
 import React from "react";
-import { ComponentProperty$Style$Stroke, ComponentProperty$Style$Radius, ComponentsProperty, ResolvingComponentsProperty, ComponentProperty$Style$Border, ComponentProperty$Style$Shadows, ComponentProperty$Style$Shadow, ComponentsProperty$TextLabel, ResolvingComponentsProperty$TextLabel, ComponentsProperty$TextLabel$Content, ComponentsProperty$TextLabel$Content$Style } from "./Property";
+import { ComponentProperty$Style$Stroke, ComponentProperty$Style$Radius, ComponentsProperty, ResolvingComponentsProperty, ComponentProperty$Style$Border, ComponentProperty$Style$Shadows, ComponentProperty$Style$Shadow, ComponentsProperty$TextLabel, ResolvingComponentsProperty$TextLabel, ComponentsProperty$TextLabel$Content, ComponentsProperty$TextLabel$Content$Style, ComponentsProperty$LinearLayout, ResolvingComponentsProperty$LinearLayout } from "./Property";
 import { DataTypes } from "./Types";
 
 export function View(data: ComponentsProperty): React.JSX.Element {
@@ -34,11 +34,12 @@ export function Shadow(_: ComponentProperty$Style$Shadow): React.JSX.Element {
 
 export function TextLabel(data: ComponentsProperty$TextLabel): React.JSX.Element {
 	let rcp: ResolvingComponentsProperty$TextLabel = new ResolvingComponentsProperty$TextLabel(data);
-	// console.log(rcp.resolvingValue());
 	let component: React.JSX.Element = <p
 		style={rcp.resolvingStyling()}
 		onMouseDown={data.onPressed} onTouchStart={data.onPressed}
-		onMouseUp={data.onReleased} onTouchEnd={data.onReleased} dangerouslySetInnerHTML={ { __html: rcp.resolvingValue() } } />;
+		onMouseUp={data.onReleased} onTouchEnd={data.onReleased}>
+			{rcp.resolvingValue()}
+		</p>;
 
 	return component;
 }
@@ -49,4 +50,16 @@ export function TextLabel$Content(_: ComponentsProperty$TextLabel$Content): Reac
 
 export function TextLabel$Content$Style(_: ComponentsProperty$TextLabel$Content$Style): React.JSX.Element {
 	return DataTypes.DataTypesDefault.DEFAULT_DIV;
+}
+
+export function LinearLayout(data: ComponentsProperty$LinearLayout): React.JSX.Element {
+	let rcp: ResolvingComponentsProperty$LinearLayout = new ResolvingComponentsProperty$LinearLayout(data);
+	let component: React.JSX.Element = <div
+		style={rcp.resolvingStyling()}
+		onMouseDown={data.onPressed} onTouchStart={data.onPressed}
+		onMouseUp={data.onReleased} onTouchEnd={data.onReleased}>
+			{data.children}
+		</div>;
+
+	return component;
 }

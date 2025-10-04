@@ -1,7 +1,6 @@
-import React from "react";
+import React, { ReactElement } from "react";
 import { Border, Radius, Shadow, Shadows, Stroke, TextLabel$Content, TextLabel$Content$Style } from "./components";
 import { DataTypes } from "./Types";
-import { getValue } from "@testing-library/user-event/dist/utils";
 
 export class ResolvingComponentsProperty {
 	readonly data: ComponentsProperty;
@@ -79,7 +78,8 @@ export class ResolvingComponentsProperty {
 			borderRadius: types[0],
 			boxShadow: types[3],
 
-			padding: resolvingNumber(this.data.padding)
+			padding: resolvingNumber(this.data.padding),
+			margin: resolvingNumber(this.data.margin),
 		};
 
 		return datas;
@@ -94,64 +94,71 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 		this.data = data;
 	}
 
-	public resolvingValue(): string {
-		function Inner(props: ComponentsProperty$TextLabel$Content, text: string = ''): string {
-			if (typeof props.children === "string") text += props.children;
+	public resolvingValue(): string | (ReactElement | string)[] {
+
+		let v = this.data.content;
+
+		if (!v) return '';
+
+		let text: string | (ReactElement | string)[] = [''];
+		function Inner(props: ComponentsProperty$TextLabel$Content, content: (React.ReactElement | string)[] = []): (React.ReactElement | string)[] {
+			if (typeof props.children === "string") content.push(props.children);
 			else if (Array.isArray(props.children)) {
 				props.children.forEach((value) => {
-					if (typeof value === "string") text += value;
+					if (typeof value === "string") content.push(value);
 					else if (React.isValidElement(value)) {
-						console.log(typeof value.type);
 						if (value.type === TextLabel$Content$Style) {
 							const ContentProps = value.props as ComponentsProperty$TextLabel$Content$Style;
 							switch (ContentProps.style) {
 								case 'strong': {
-									text += `<b ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</b>`;
+									content.push(<b>{Inner(ContentProps)}</b>);
 									break;
 								}
 								case 'underline': {
-									text += `<u ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</u>`;
+									content.push(<u>{Inner(ContentProps)}</u>);
 									break;
 								}
 								case 'italic': {
-									text += `<i ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</i>`;
+									content.push(<i>{Inner(ContentProps)}</i>);
 									break;
 								}
 								default: {
 									if (typeof ContentProps.style === "object") {
 										let mapping: { reference: string; } | { weight: number } = ContentProps.style;
 										if ('reference' in mapping) {
-											text += `<a ${ContentProps.color ? ` style='color: ${resolvingColor(ContentProps.color)}'` : ''} href='#${mapping.reference}'>${Inner(ContentProps)}</a>`;
+											content.push(<a href={mapping.reference ? undefined : '#' + mapping.reference}>{Inner(ContentProps)}</a>);
 										} else if ('weight' in mapping) {
-											text += `<p ${ContentProps.color ? ` style='margin: 0px; font-weight: ${mapping.weight}; color: ${resolvingColor(ContentProps.color)}'` : ''}>${Inner(ContentProps)}</p>`;
+											content.push(<p style={
+												{
+													fontWeight: mapping.weight
+												}
+											}>{Inner(ContentProps)}</p>);
 										}
 									}
 								}
-								return;
 							}
 							return;
 						}
-						throw new Error("Only the type '<TextLabel$Content$Style ...>...</TextLabel$Content$Style>' or 'string' can be used;  any other type of value is not valid.")
+						throw new Error("Only the type '<TextLabel$Content$Style ...>...</TextLabel$Content$Style>' or 'string' can be used; any other type of value is not valid.")
 					} 
 				})
 			}
 
-			return text;
+			return content;
 		}
-
-		let v = this.data.content;
-		let text: string = '';
-
-		if (!v) return '';
 		
-		if (React.isValidElement(v)) {
-			const ContentProps = v.props as ComponentsProperty$TextLabel$Content;
-
-			text = Inner(ContentProps, text);
-			console.log(text)
-		} else if (typeof v === "string") {
+		if (typeof v === "string") {
 			text = v;
+		} else if (React.isValidElement(v)) {
+			if (v.type === TextLabel$Content) {
+				const ContentProps = v.props as ComponentsProperty$TextLabel$Content;
+				text = Inner(ContentProps, text);
+				return text;
+			}
+			throw new Error("Only the type '<TextLabel$Content>...</TextLabel$Content>' can be used; any other type of value is not valid.")
 		}
+
+		console.log(v);
 
 		return text;
 	}
@@ -182,6 +189,29 @@ export class ResolvingComponentsProperty$TextLabel extends ResolvingComponentsPr
 	}
 }
 
+export class ResolvingComponentsProperty$LinearLayout extends ResolvingComponentsProperty {
+	readonly data: ComponentsProperty$LinearLayout;
+
+	constructor(data: ComponentsProperty$LinearLayout) {
+		super(data);
+		this.data = data;
+	}
+
+	public resolvingStyling(): React.CSSProperties | undefined {
+		let data = this.data;
+		let mapping: React.CSSProperties | undefined = super.resolvingStyling();
+		if (mapping) {
+			mapping.display = 'flex';
+			if (data.orientation && data.orientation === 'horizontal') {
+				mapping.flexDirection = 'row';
+			} else if (data.orientation && data.orientation === 'vertical') {
+				mapping.flexDirection = 'column';
+			}
+		}
+		return mapping;
+	}
+}
+
 export interface ComponentsProperty {
 	height: DataTypes.ViewPort$Height | DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
 	width: DataTypes.ViewPort$Width | DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
@@ -194,24 +224,12 @@ export interface ComponentsProperty {
 	padding?: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
 		  | ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
 		  | (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters);
+	margin?: ([DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point, DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch, DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters, DataTypes.Millimeters])
+		  | ([DataTypes.PorcentageRange, DataTypes.PorcentageRange] | [DataTypes.Pixel, DataTypes.Pixel] | [DataTypes.Point, DataTypes.Point] | [DataTypes.Inch, DataTypes.Inch] | [DataTypes.Centimeters, DataTypes.Centimeters] | [DataTypes.Millimeters, DataTypes.Millimeters])
+		  | (DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters);
 
 	onPressed?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
 	onReleased?: (event: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => void;
-}
-
-export interface ComponentsProperty$TextLabel extends ComponentsProperty {
-	content: string | React.ReactElement<ComponentsProperty$TextLabel$Content>;
-	style?: 'strong' | 'underline' | 'italic' | 'oblique' | { weight: number };
-	fontColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
-}
-
-export interface ComponentsProperty$TextLabel$Content {
-	children: string | (string | React.ReactElement<ComponentsProperty$TextLabel$Content$Style>)[];
-}
-
-export interface ComponentsProperty$TextLabel$Content$Style extends ComponentsProperty$TextLabel$Content {
-	style: 'strong' | 'underline' | 'italic' | { weight: number } | { reference: string };
-	color?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
 }
 
 export interface ComponentProperty$Style$Stroke {
@@ -238,6 +256,26 @@ export interface ComponentProperty$Style$Shadow {
 	bottomShadow: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
 	blurShadow?: DataTypes.PorcentageRange | DataTypes.Pixel | DataTypes.Point | DataTypes.Inch | DataTypes.Centimeters | DataTypes.Millimeters;
 	shadowColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
+}
+
+export interface ComponentsProperty$TextLabel extends ComponentsProperty {
+	content: string | React.ReactElement<ComponentsProperty$TextLabel$Content>;
+	style?: 'strong' | 'underline' | 'italic' | 'oblique' | { weight: number };
+	fontColor?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
+}
+
+export interface ComponentsProperty$TextLabel$Content {
+	children: string | (string | React.ReactElement<ComponentsProperty$TextLabel$Content$Style>)[];
+}
+
+export interface ComponentsProperty$TextLabel$Content$Style extends ComponentsProperty$TextLabel$Content {
+	style: 'strong' | 'underline' | 'italic' | { weight: number } | { reference: string };
+	color?: [DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor, DataTypes.RangeNumberColor?] | [DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor, DataTypes.RangeHexadecimalColor?] | DataTypes.NamedColor | DataTypes.DeprecatedSystemColor;
+}
+
+export interface ComponentsProperty$LinearLayout extends ComponentsProperty {
+	children: React.ReactElement<ComponentsProperty>[] | React.ReactElement<ComponentsProperty>;
+	orientation: 'horizontal' | 'vertical';
 }
 
 function resolvingColor(
